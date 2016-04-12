@@ -1,0 +1,57 @@
+package {{package}};
+
+{{#imports}}import {{import}};
+{{/imports}}
+import com.pmovil.jsonapi.BeansInterface;
+import com.pmovil.jsonapi.UnexpectedJsonException;
+import java.util.Map;
+import org.json.simple.JSONObject;
+
+{{#models}}
+
+{{#model}}{{#description}}
+/**
+ * {{description}}
+ **/{{/description}}
+public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} implements BeansInterface {
+  {{#vars}}{{#isEnum}}
+  public enum {{datatypeWithEnum}} {
+    {{#allowableValues}}{{#values}} {{.}}, {{/values}}{{/allowableValues}}
+  };
+  private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};{{/isEnum}}{{^isEnum}}
+  private {{{datatype}}} {{name}} = {{{defaultValue}}};{{/isEnum}}{{/vars}}
+
+  {{#vars}}
+  /**{{#description}}
+   * {{{description}}}{{/description}}{{#minimum}}
+   * minimum: {{minimum}}{{/minimum}}{{#maximum}}
+   * maximum: {{maximum}}{{/maximum}}
+   **/
+  public {{{datatypeWithEnum}}} {{getter}}() {
+    return {{name}};
+  }
+  public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
+    this.{{name}} = {{name}};
+  }
+  {{/vars}}
+  @Override
+  public String toString()  {
+    return "class {{classname}} " + toJsonString();
+  }
+  
+  public String toJsonString() {
+        JSONObject jsonObject = new JSONObject();
+        {{#vars}}jsonObject.put("{{name}}", {{name}});
+        {{/vars}}
+        return jsonObject.toJSONString();
+  }
+
+  @Override
+  public void update(Map<String, Object> result, boolean cached) throws UnexpectedJsonException {
+        {{#vars}}if (result.containsKey("{{baseName}}")) {{name}} = ({{{datatypeWithEnum}}})result.get("{{baseName}}");
+        {{/vars}}
+  }
+
+}
+{{/model}}
+{{/models}}

@@ -1,0 +1,218 @@
+package {{package}};
+
+{{#imports}}import {{import}};
+{{/imports}}
+import com.codename1.ui.Slider;
+import com.codename1.util.StringUtil;
+import com.pmovil.jsonapi.BeansInterface;
+import com.pmovil.jsonapi.ConnectionRequest;
+import com.pmovil.jsonapi.ErrorBean;
+import com.pmovil.jsonapi.JsonAPIClient;
+import com.pmovil.jsonapi.Pair;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
+{{#operations}}
+public class {{classname}} {
+
+    private static JsonAPIClient client;
+    private static int timeout = 30000; // 30s
+    private static byte priority = ConnectionRequest.PRIORITY_HIGH;
+    public static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+
+    public {{classname}}() {
+        if (client == null) {
+            client = new JsonAPIClient("{{basePath}}");
+        }
+    }
+    
+    public void addHeader(String key, String value) {
+        // TODO
+    }
+
+    public void setBasePath(String basePath) {
+        client = new JsonAPIClient(basePath);
+    }
+
+    public String getBasePath() {
+        return client.getUrl();
+    }
+
+    public static byte getPriority() {
+        return priority;
+    }
+
+    public static void setPriority(byte priority) {
+        {{classname}}.priority = priority;
+    }
+
+    public static int getTimeout() {
+        return timeout;
+    }
+
+    public static void setTimeout(int timeout) {
+        {{classname}}.timeout = timeout;
+    }
+{{#operation}}
+
+    /**
+     *
+     * {{summary}}
+     * {{notes}}
+     *
+     * @param listener called when the request is done, may be null
+     * @param progress tracks the request progress, may be null
+{{#allParams}}     * @param {{paramName}} {{description}}
+{{/allParams}}
+     * @return {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}void{{/returnType}}
+     */
+    public void {{nickname}}(JsonAPIClient.BeanListener listener, Slider progress{{#allParams}}, {{{dataType}}} {{paramName}}{{/allParams}}) {
+
+    {{#allParams}}{{#required}}
+        // verify the required parameter '{{paramName}}' is set
+        if ({{paramName}} == null) {
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("status", "Validation error");
+            error.put("error", "Missing the required parameter '{{paramName}}' when calling {{nickname}}");
+            listener.onErrorResponse(new ErrorBean(), 400);
+            return;
+        }
+    {{/required}}{{/allParams}}
+        HashMap<String, ArrayList<String>> postfiles = new HashMap();
+        {{#bodyParam}}ArrayList<String> {{paramName}}Data = new ArrayList<String>();
+        {{paramName}}Data.add("application/json");
+        {{paramName}}Data.add({{paramName}}.toJsonString());
+        postfiles.put("{{paramName}}", {{paramName}}Data);
+        {{/bodyParam}}
+
+        List<Pair> queryParams = new ArrayList<Pair>();
+        {{#queryParams}}queryParams.addAll(parameterToPairs("{{#collectionFormat}}{{{collectionFormat}}}{{/collectionFormat}}", "{{baseName}}", {{paramName}}));
+        {{/queryParams}}
+
+        // create path and map variables
+        String path = "{{path}}";
+        path = StringUtil.replaceAll(path, "\\{format\\}", "json");
+        {{#pathParams}}path = StringUtil.replaceAll(path, "{" + "{{baseName}}" + "}", stringOf({{{paramName}}}));
+        {{/pathParams}}
+
+        try {
+            ArrayList<BeansInterface> beans = new ArrayList<>();
+            beans.add(new ErrorBean());
+            {{#returnType}}{{^returnContainer}}beans.add(new {{{returnType}}}());{{/returnContainer}}{{/returnType}}
+            ConnectionRequest request = client.prepare("{{httpMethod}}", path, progress, queryParams, postfiles, true, true, timeout, priority);
+            client.send(request, listener, beans);
+        } catch (IOException ex) {
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("status", "Build request error");
+            error.put("error", ex.getMessage());
+            listener.onErrorResponse(new ErrorBean(), 400);
+        }
+    }
+{{/operation}}
+{{/operations}}
+    /**
+     * 
+     * helper method to format object to string as needed/wanted
+     *
+     * @param object
+     * @return formatted string
+     */
+    private String stringOf(Object object) {
+        if (object instanceof Double) {
+            // remove unneeded dot
+            if ((double) object == (long) ((double)object)) {
+                return Long.toString((long) ((double)object));
+            }
+        }
+        return object.toString();
+    }
+
+    /**
+     *
+     * helper method to format parameters
+     *
+     */
+    public static List<Pair> parameterToPairs(String collectionFormat, String name, Object value) {
+        List<Pair> params = new ArrayList<Pair>();
+
+        // preconditions
+        if (name == null || name.equals("") || value == null) {
+            return params;
+        }
+
+        Collection valueCollection = null;
+        if (value instanceof Collection) {
+            valueCollection = (Collection) value;
+        } else {
+            params.add(new Pair(name, parameterToString(value)));
+            return params;
+        }
+
+        if (valueCollection.isEmpty()) {
+            return params;
+        }
+
+        // get the collection format
+        collectionFormat = (collectionFormat == null || collectionFormat.equals("") ? "csv" : collectionFormat); // default: csv
+
+        // create the params based on the collection format
+        if (collectionFormat.equals("multi")) {
+            for (Object item : valueCollection) {
+                params.add(new Pair(name, parameterToString(item)));
+            }
+
+            return params;
+        }
+
+        String delimiter = ",";
+
+        if (collectionFormat.equals("csv")) {
+            delimiter = ",";
+        } else if (collectionFormat.equals("ssv")) {
+            delimiter = " ";
+        } else if (collectionFormat.equals("tsv")) {
+            delimiter = "\t";
+        } else if (collectionFormat.equals("pipes")) {
+            delimiter = "|";
+        }
+
+        StringBuffer sb = new StringBuffer();
+        for (Object item : valueCollection) {
+            sb.append(delimiter);
+            sb.append(parameterToString(item));
+        }
+
+        params.add(new Pair(name, sb.toString().substring(1)));
+
+        return params;
+    }
+
+    public static String parameterToString(Object param) {
+        if (param == null) {
+            return "";
+        } else if (param instanceof Date) {
+            return formatDateTime((Date) param);
+        } else if (param instanceof Collection) {
+            StringBuilder b = new StringBuilder();
+            for (Object o : (Collection) param) {
+                if (b.length() > 0) {
+                    b.append(",");
+                }
+                b.append(String.valueOf(o));
+            }
+            return b.toString();
+        } else {
+            return String.valueOf(param);
+        }
+    }
+
+    public static String formatDateTime(Date datetime) {
+        return DATE_TIME_FORMAT.format(datetime);
+    }
+
+}

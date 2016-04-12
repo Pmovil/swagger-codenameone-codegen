@@ -1,0 +1,17 @@
+package {{{groupId}}};
+
+import {{apiPackage}}.DefaultApi;
+
+public class {{{artifactId}}} {
+    private static DefaultApi client;
+
+    private {{{artifactId}}}() {
+    }
+    
+    public static DefaultApi getInstance() {
+        if (client == null) {
+            client = new DefaultApi();
+        }
+        return client;
+    }
+}
