@@ -48,9 +48,67 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} implements
 
   @Override
   public void update(Map<String, Object> result, boolean cached) throws UnexpectedJsonException {
-        {{#vars}}if (result.containsKey("{{baseName}}")) {{name}} = ({{{datatypeWithEnum}}})result.get("{{baseName}}");
+        {{#vars}}if (result.containsKey("{{baseName}}")) {{name}} = ({{{datatypeWithEnum}}})validate(result.get("{{baseName}}"), {{baseType}}.class);
         {{/vars}}
   }
+
+  /**
+   * Helper class to deal with types that are not what are supposed to be
+   * 
+   * @param obj
+   * @param type
+   * @return
+   * @throws UnexpectedJsonException 
+   */
+    private Object validate(Object obj, Class type) throws UnexpectedJsonException {
+        try {
+            Object[] tmp = (Object[]) obj;
+            return obj;
+        } catch (ClassCastException e) {
+            // not an array, proceed
+        }
+        if ("Integer".equals(type.getSimpleName())) {
+            if (!(obj instanceof Integer)) {
+                try {
+                    double parsed = Double.parseDouble(obj.toString());
+                    if (parsed == (int)parsed) {
+                        return (int)parsed;
+                    } else {
+                        // not an integer
+                        throw new UnexpectedJsonException();
+                    }
+                } catch (NumberFormatException e) {
+                    // not a number
+                    throw new UnexpectedJsonException();
+                }
+            }
+        }
+        if ("Long".equals(type.getSimpleName())) {
+            if (!(obj instanceof Long)) {
+                try {
+                    double parsed = Double.parseDouble(obj.toString());
+                    if (parsed == (long)parsed) {
+                        return (long)parsed;
+                    } else {
+                        // not an integer
+                        throw new UnexpectedJsonException();
+                    }
+                } catch (NumberFormatException e) {
+                    // not a number
+                    throw new UnexpectedJsonException();
+                }
+            }
+        }
+        if (type.isEnum()) {
+            try {
+                return Enum.valueOf(type, obj.toString());
+            } catch (Exception ex) {
+                // not a constant from this enum
+                throw new UnexpectedJsonException();
+            }
+        }
+        return obj;
+    }
 
 }
 {{/model}}

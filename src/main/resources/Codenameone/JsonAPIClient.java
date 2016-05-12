@@ -37,19 +37,28 @@ public class JsonAPIClient {
 
         Log.p("[JsonAPIClient] preparing " + action + " on " + path);
 
+        String params = "";
+        Iterator<Pair> queryParamsIterator = queryParams.iterator();
+        if (queryParamsIterator.hasNext()) {
+            params = "?";
+        }
+        while (queryParamsIterator.hasNext()) {
+            Pair param = queryParamsIterator.next();
+            params += Util.encodeUrl(param.getName()) + "=" + Util.encodeUrl(param.getValue());
+            if (queryParamsIterator.hasNext()) {
+                params += "&";
+            }
+        }
+        connectionRequest.setUrl(url + path + params);
+        boolean shouldWrite = postFiles != null && !postFiles.isEmpty();
+        connectionRequest.setPost(shouldWrite);
+        connectionRequest.setMultipart(shouldWrite);
+        connectionRequest.setHttpMethod(action);
         connectionRequest.setTimeout(timeout);
         connectionRequest.setPriority(priority);
-        connectionRequest.setUrl(url + path);
-        connectionRequest.setPost(postFiles != null && !postFiles.isEmpty());
         connectionRequest.setReadResponseForErrors(true);
         connectionRequest.setFailSilently(failSilently);
         connectionRequest.setDuplicateSupported(duplicate);
-        Iterator<Pair> params = queryParams.iterator();
-        while (params.hasNext()) {
-            Pair param = params.next();
-            connectionRequest.addArgument(param.getName(), param.getValue());
-        }
-        connectionRequest.setHttpMethod(action);
 
         if (progress != null) {
             SliderBridge.bindProgress(connectionRequest, progress);
@@ -58,11 +67,10 @@ public class JsonAPIClient {
         if (connectionRequest.isPost()) {
             Log.p("[JsonAPIClient] Posting files");
             for (Entry<String, ArrayList<String>> entrySet : postFiles.entrySet()) {
-                InputStream is;
                 if (entrySet.getValue().get(0).equals("application/json")) {
-                    byte[] data = entrySet.getValue().get(1).getBytes("UTF-8");
-                    connectionRequest.addData((String) entrySet.getKey(), is = new ByteArrayInputStream(data), data.length, entrySet.getValue().get(0));
+                    connectionRequest.addArgument(entrySet.getKey(), entrySet.getValue().get(1), entrySet.getValue().get(0));
                 } else {
+                    InputStream is;
                     long length = FileSystemStorage.getInstance().getLength(entrySet.getValue().get(1));
                     if (length <= 0) {
                         // no file length available, lets try an alternate method
@@ -77,9 +85,11 @@ public class JsonAPIClient {
                             System.gc();
                             System.gc();
                         }
-                        connectionRequest.addData((String) entrySet.getKey(), is = FileSystemStorage.getInstance().openInputStream(entrySet.getValue().get(1)), length, entrySet.getValue().get(0));
+                        is = FileSystemStorage.getInstance().openInputStream(entrySet.getValue().get(1));
+                        connectionRequest.addData((String) entrySet.getKey(), is, length, entrySet.getValue().get(0));
                     } else {
-                        connectionRequest.addData((String) entrySet.getKey(), is = FileSystemStorage.getInstance().openInputStream(entrySet.getValue().get(1)), length, entrySet.getValue().get(0));
+                        is = FileSystemStorage.getInstance().openInputStream(entrySet.getValue().get(1));
+                        connectionRequest.addData((String) entrySet.getKey(), is, length, entrySet.getValue().get(0));
                     }
                 }
             }

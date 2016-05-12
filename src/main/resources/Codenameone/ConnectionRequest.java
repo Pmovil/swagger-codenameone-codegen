@@ -250,6 +250,19 @@ public class ConnectionRequest extends com.codename1.io.ConnectionRequest {
     }
 
     /**
+     * Adds an argument with a defined mime type 
+     *
+     * @param name the name of the data
+     * @param argument the data stream
+     * @param mimeType the mime type for the content
+     */
+    public void addArgument(String name, String argument, String mimeType) {
+        args.put(name, argument);
+        mimeTypes.put(name, mimeType);
+        ignoreEncoding.addElement(name);
+    }
+
+    /**
      * Sets the filename for the given argument
      *
      * @param arg the argument name
@@ -296,13 +309,18 @@ public class ConnectionRequest extends com.codename1.io.ConnectionRequest {
         long bLength = boundary.length() + 4; // -- + boundary + CRLF
         long baseBinaryLength = dLength + ctLength + cteLength + bLength + 2; // 2 = CRLF at end of part 
         dLength = "Content-Disposition: form-data; name=\"\"".length() + 2;  // 2 = CRLF
-        ctLength = "Content-Type: text/plain; charset=UTF-8".length() + 4; // 4 = 2 * CRLF
-        long baseTextLength = dLength + ctLength + bLength + 2;  // 2 = CRLF at end of part
+        long defaultMimeLength = "Content-Type: text/plain; charset=UTF-8".length() + 4; // 4 = 2 * CRLF
+        long baseTextLength = dLength + bLength + 2;  // 2 = CRLF at end of part
 
         while (e.hasMoreElements()) {
             String key = (String) e.nextElement();
             Object value = args.get(key);
             if (value instanceof String) {
+                if (mimeTypes.containsKey(key)) {
+                    length += ("Content-Type: " + mimeTypes.get(key)).length() + 4; // 4 = 2 * CRLF
+                } else {
+                    length += defaultMimeLength;
+                }
                 length += baseTextLength;
                 length += key.length();
                 if (ignoreEncoding.contains(key)) {
@@ -349,7 +367,11 @@ public class ConnectionRequest extends com.codename1.io.ConnectionRequest {
                     writer.write(key);
                     writer.write("\"");
                     writer.write(CRLF);
-                    writer.write("Content-Type: text/plain; charset=UTF-8");
+                    if (mimeTypes.containsKey(key)) {
+                        writer.write("Content-Type: " + mimeTypes.get(key));
+                    } else {
+                        writer.write("Content-Type: text/plain; charset=UTF-8");
+                    }
                     writer.write(CRLF);
                     writer.write(CRLF);
                     writer.flush();
