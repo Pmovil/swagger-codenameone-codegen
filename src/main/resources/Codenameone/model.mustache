@@ -41,14 +41,14 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} implements
   
   public String toJsonString() {
         JSONObject jsonObject = new JSONObject();
-        {{#vars}}jsonObject.put("{{name}}", {{name}});
+        {{#vars}}jsonObject.put("{{baseName}}", {{#isEnum}}(String){{name}}.toString(){{/isEnum}}{{^isEnum}}{{name}}{{/isEnum}});
         {{/vars}}
         return jsonObject.toJSONString();
   }
 
   @Override
   public void update(Map<String, Object> result, boolean cached) throws UnexpectedJsonException {
-        {{#vars}}if (result.containsKey("{{baseName}}")) {{name}} = ({{{datatypeWithEnum}}})validate(result.get("{{baseName}}"), {{baseType}}.class);
+        {{#vars}}if (result.containsKey("{{baseName}}")) {{name}} = ({{{datatypeWithEnum}}})validate(result.get("{{baseName}}"), {{#isEnum}}{{datatypeWithEnum}}{{/isEnum}}{{^isEnum}}{{baseType}}{{/isEnum}}.class);
         {{/vars}}
   }
 
